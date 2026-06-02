@@ -24,12 +24,8 @@ if [ -z "${AUTO_UPDATE}" ] || [ "${AUTO_UPDATE}" == "1" ] || { [ "${GMOD_X64}" =
 fi
 
 if [[ ! -z "$GIT_ADDONS" ]]; then
-
-    GIT_ADDONS=$(echo "$GIT_ADDONS" | tr ',\n\t' '   ')
-
-    for repo_url in $GIT_ADDONS; do
-        repo_name=$(echo "$repo_url" | sed -E 's#.*/([^/]+)\.git$#\1#')
-        repo_path=/home/container/garrysmod/addons/$repo_name
+    for repo_url in $(echo "$GIT_ADDONS" | tr ',\n\t' '   '); do
+        repo_path=/home/container/garrysmod/addons/$(echo "$repo_url" | sed -E 's#.*/([^/]+)\.git$#\1#')
 
         if [[ -d "$repo_path" ]]; then
             cd "$repo_path" || exit 1
@@ -42,8 +38,17 @@ if [[ ! -z "$GIT_ADDONS" ]]; then
 
         git submodule update --init --recursive "$repo_path"
     done
-
 fi
+
+# ttt is restricted here >:c
+rm -rf "/home/container/garrysmod/gamemodes/terrortown"
+
+find "/home/container/garrysmod/addons" \
+    -type d \
+    -path '*/gamemodes/terrortown' |
+while read -r ttt_dir; do
+    rm -rf "$(echo "$ttt_dir" | sed 's#/gamemodes/terrortown$##')"
+done
 
 # Switch to the container's working directory
 cd /home/container || exit 1
@@ -51,5 +56,6 @@ cd /home/container || exit 1
 # Display the command we're running in the output, and then execute it with the env
 # from the container itself.
 printf "\033[1m\033[33mcontainer@pterodactyl~ \033[0m%s\n" "$PARSED"
+
 # shellcheck disable=SC2086
 exec env ${PARSED}
