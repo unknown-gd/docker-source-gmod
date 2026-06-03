@@ -40,16 +40,6 @@ if [[ ! -z "$GIT_ADDONS" ]]; then
     done
 fi
 
-# ttt is restricted here >:c
-rm -rf "/home/container/garrysmod/gamemodes/terrortown"
-
-find "/home/container/garrysmod/addons" \
-    -type d \
-    -path '*/gamemodes/terrortown' |
-while read -r ttt_dir; do
-    rm -rf "$(echo "$ttt_dir" | sed 's#/gamemodes/terrortown$##')"
-done
-
 # Switch to the container's working directory
 cd /home/container || exit 1
 
