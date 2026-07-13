@@ -30,14 +30,19 @@ cd /mnt/server/garrysmod/cfg
 if [ ! -f "server.cfg" ]; then
 
 echo '
-hostname        "The Alium Community Server"
+hostname        "p1ka.eu - Public Server"
 sv_password     ""
-sv_loadingurl   "https://erickmaksimets.github.io/loadingscreen.github.io/"
+sv_loadingurl   ""
 sv_downloadurl  ""
 
 // Steam Server List Settings
 sv_location "eu"
 sv_lan "0"
+
+// Game Defaults - HL2
+sv_defaultdeployspeed   1
+mp_show_voice_icons     0
+sv_gravity              800
 
 // Network Settings - Please keep these set to default.
 sv_minrate              75000
