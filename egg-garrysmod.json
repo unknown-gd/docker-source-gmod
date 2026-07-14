@@ -1,265 +1,262 @@
 {
-    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
-    "meta": {
-        "version": "PTDL_v2",
-        "update_url": null
+  "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+  "meta": {
+    "version": "PTDL_v2",
+    "update_url": null
+  },
+  "exported_at": "2026-07-14T17:17:08+02:00",
+  "name": "garrysmod",
+  "author": "ukdev@p1ka.eu",
+  "description": "Garrys Mod, is a sandbox physics game on Source Engine by Valve.",
+  "features": ["gsl_token", "steam_disk_space"],
+  "docker_images": {
+    "docker.io\/unknown0gd\/garrysmod:latest": "docker.io\/unknown0gd\/garrysmod:latest"
+  },
+  "file_denylist": [],
+  "startup": ".\/$( [[ \"${GMOD_BRANCH}\" = \"x86-64\" ]] && printf %s 'srcds_run_x64' || printf %s 'srcds_run' ) -game garrysmod -console -port {{SERVER_PORT}} +ip 0.0.0.0 +host_workshop_collection {{WORKSHOP_ID}} +map {{SRCDS_MAP}} +gamemode {{GAMEMODE}} -strictportbind -norestart +sv_setsteamaccount {{STEAM_ACC}} +maxplayers {{MAX_PLAYERS}} -tickrate {{TICKRATE}} +developer {{GMOD_DEVELOPER}} $( [ \"${LUA_REFRESH}\" == \"1\" ] || printf %s '-disableluarefresh' )",
+  "config": {
+    "files": "{}",
+    "startup": "{\r\n    \"done\": \"gameserver Steam ID\"\r\n}",
+    "logs": "{}",
+    "stop": "quit"
+  },
+  "scripts": {
+    "installation": {
+      "script": "#!\/bin\/bash\r\n\r\n## download and install steamcmd\r\ncd \/tmp\r\nmkdir -p \/mnt\/server\/steamcmd\r\ncurl -sSL -o steamcmd.tar.gz https:\/\/steamcdn-a.akamaihd.net\/client\/installer\/steamcmd_linux.tar.gz\r\ntar -xzvf steamcmd.tar.gz -C \/mnt\/server\/steamcmd\r\n\r\n# Fix steamcmd disk write error when this folder is missing\r\nmkdir -p \/mnt\/server\/steamapps\r\ncd \/mnt\/server\/steamcmd\r\n\r\n# SteamCMD fails otherwise for some reason, even running as root.\r\n# This is changed at the end of the install process anyways.\r\nchown -R root:root \/mnt\r\nexport HOME=\/mnt\/server\r\n\r\n## install game using steamcmd\r\n.\/steamcmd.sh \\\r\n    +force_install_dir \/mnt\/server \\\r\n    +login anonymous \\\r\n    +app_update 4020 \\\r\n    -beta \"${GMOD_BRANCH}\" \\\r\n    validate \\\r\n    +quit\r\n\r\n## set up 32 bit libraries\r\nmkdir -p \/mnt\/server\/.steam\/sdk32\r\ncp -v linux32\/steamclient.so ..\/.steam\/sdk32\/steamclient.so\r\n\r\n## set up 64 bit libraries\r\nmkdir -p \/mnt\/server\/.steam\/sdk64\r\ncp -v linux64\/steamclient.so ..\/.steam\/sdk64\/steamclient.so\r\n\r\ncd \/mnt\/server\/garrysmod\/cfg\r\n\r\nif [ ! -f \"server.cfg\" ]; then\r\n\r\necho '\r\nhostname        \"p1ka.eu - Public Server\"\r\nsv_password     \"\"\r\nsv_loadingurl   \"\"\r\nsv_downloadurl  \"\"\r\n\r\n\/\/ Steam Server List Settings\r\nsv_location \"eu\"\r\nsv_lan \"0\"\r\n\r\n\/\/ Game Defaults - HL2\r\nsv_defaultdeployspeed   1\r\nmp_show_voice_icons     0\r\nsv_gravity              800\r\n\r\n\/\/ Network Settings - Please keep these set to default.\r\nsv_minrate              75000\r\nsv_maxrate              0\r\ngmod_physiterations     2\r\nnet_splitpacket_maxrate 45000\r\ndecalfrequency          12\r\n\r\n\/\/ Execute Ban Files - Please do not edit\r\nexec banned_ip.cfg\r\nexec banned_user.cfg\r\n' > server.cfg\r\n\r\nfi\r\n\r\nmkdir -p \/mnt\/server\/garrysmod\/addons",
+      "container": "ghcr.io\/pterodactyl\/installers:debian",
+      "entrypoint": "bash"
+    }
+  },
+  "variables": [
+    {
+      "name": "Map",
+      "description": "The default map for the server.",
+      "env_variable": "SRCDS_MAP",
+      "default_value": "gm_flatgrass",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string|alpha_dash",
+      "field_type": "text"
     },
-    "exported_at": "2026-07-13T19:08:10+02:00",
-    "name": "garrysmod",
-    "author": "ukdev@p1ka.eu",
-    "description": "Garrys Mod, is a sandbox physics game on Source Engine by Valve.",
-    "features": [
-        "gsl_token",
-        "steam_disk_space"
-    ],
-    "docker_images": {
-        "docker.io\/unknown0gd\/garrysmod:latest": "docker.io\/unknown0gd\/garrysmod:latest"
+    {
+      "name": "Steam Account Token",
+      "description": "The Steam Account Token required for the server to be displayed publicly.",
+      "env_variable": "STEAM_ACC",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|string|alpha_num|size:32",
+      "field_type": "text"
     },
-    "file_denylist": [],
-    "startup": ".\/$( [[ \"${GMOD_X64}\" == \"1\" ]] && printf %s 'srcds_run_x64' || printf %s 'srcds_run' ) -game garrysmod -console -port {{SERVER_PORT}} +ip 0.0.0.0 +host_workshop_collection {{WORKSHOP_ID}} +map {{SRCDS_MAP}} +gamemode {{GAMEMODE}} -strictportbind -norestart +sv_setsteamaccount {{STEAM_ACC}} +maxplayers {{MAX_PLAYERS}} -tickrate {{TICKRATE}} +developer{{GMOD_DEVELOPER}} $( [ \"${LUA_REFRESH}\" == \"1\" ] || printf %s '-disableluarefresh' )",
-    "config": {
-        "files": "{}",
-        "startup": "{\r\n    \"done\": \"gameserver Steam ID\"\r\n}",
-        "logs": "{}",
-        "stop": "quit"
+    {
+      "name": "Source AppID",
+      "description": "Required for game to update on server restart. Do not modify this.",
+      "env_variable": "SRCDS_APPID",
+      "default_value": "4020",
+      "user_viewable": false,
+      "user_editable": false,
+      "rules": "required|string|max:20",
+      "field_type": "text"
     },
-    "scripts": {
-        "installation": {
-            "script": "#!\/bin\/bash\r\n# Server Files: \/mnt\/server\r\n\r\n## download and install steamcmd\r\ncd \/tmp\r\nmkdir -p \/mnt\/server\/steamcmd\r\ncurl -sSL -o steamcmd.tar.gz https:\/\/steamcdn-a.akamaihd.net\/client\/installer\/steamcmd_linux.tar.gz\r\ntar -xzvf steamcmd.tar.gz -C \/mnt\/server\/steamcmd\r\n# Fix steamcmd disk write error when this folder is missing\r\nmkdir -p \/mnt\/server\/steamapps\r\ncd \/mnt\/server\/steamcmd\r\n\r\n# SteamCMD fails otherwise for some reason, even running as root.\r\n# This is changed at the end of the install process anyways.\r\nchown -R root:root \/mnt\r\nexport HOME=\/mnt\/server\r\n\r\n## install game using steamcmd\r\n.\/steamcmd.sh +force_install_dir \/mnt\/server +login anonymous +app_update 4020 -beta $( [[ \"${GMOD_X64}\" == \"1\" ]] && printf %s 'x86-64' || printf %s 'public' ) validate +quit\r\n\r\n## set up 32 bit libraries\r\nmkdir -p \/mnt\/server\/.steam\/sdk32\r\ncp -v linux32\/steamclient.so ..\/.steam\/sdk32\/steamclient.so\r\n\r\n## set up 64 bit libraries\r\nmkdir -p \/mnt\/server\/.steam\/sdk64\r\ncp -v linux64\/steamclient.so ..\/.steam\/sdk64\/steamclient.so\r\n\r\ncd \/mnt\/server\/garrysmod\/cfg\r\nif [ ! -f \"server.cfg\" ]; then\r\n\r\necho '\r\nhostname        \"The Alium Community Server\"\r\nsv_password     \"\"\r\nsv_loadingurl   \"https:\/\/erickmaksimets.github.io\/loadingscreen.github.io\/\"\r\nsv_downloadurl  \"\"\r\n\r\n\/\/ Steam Server List Settings\r\nsv_location \"eu\"\r\nsv_lan \"0\"\r\n\r\n\/\/ Network Settings - Please keep these set to default.\r\nsv_minrate              75000\r\nsv_maxrate              0\r\ngmod_physiterations     2\r\nnet_splitpacket_maxrate 45000\r\ndecalfrequency          12\r\n\r\n\/\/ Execute Ban Files - Please do not edit\r\nexec banned_ip.cfg\r\nexec banned_user.cfg\r\n' > server.cfg\r\n\r\nfi\r\n\r\nmkdir -p \/mnt\/server\/garrysmod\/addons",
-            "container": "ghcr.io\/pterodactyl\/installers:debian",
-            "entrypoint": "bash"
-        }
+    {
+      "name": "Workshop ID",
+      "description": "The ID of your workshop collection (the numbers at the end of the URL)",
+      "env_variable": "WORKSHOP_ID",
+      "default_value": "",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "nullable|integer",
+      "field_type": "text"
     },
-    "variables": [
-        {
-            "name": "Map",
-            "description": "The default map for the server.",
-            "env_variable": "SRCDS_MAP",
-            "default_value": "gm_flatgrass",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|string|alpha_dash",
-            "field_type": "text"
-        },
-        {
-            "name": "Steam Account Token",
-            "description": "The Steam Account Token required for the server to be displayed publicly.",
-            "env_variable": "STEAM_ACC",
-            "default_value": "",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "nullable|string|alpha_num|size:32",
-            "field_type": "text"
-        },
-        {
-            "name": "Source AppID",
-            "description": "Required for game to update on server restart. Do not modify this.",
-            "env_variable": "SRCDS_APPID",
-            "default_value": "4020",
-            "user_viewable": false,
-            "user_editable": false,
-            "rules": "required|string|max:20",
-            "field_type": "text"
-        },
-        {
-            "name": "Workshop ID",
-            "description": "The ID of your workshop collection (the numbers at the end of the URL)",
-            "env_variable": "WORKSHOP_ID",
-            "default_value": "",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "nullable|integer",
-            "field_type": "text"
-        },
-        {
-            "name": "Gamemode",
-            "description": "The gamemode of your server.",
-            "env_variable": "GAMEMODE",
-            "default_value": "sandbox",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|string",
-            "field_type": "text"
-        },
-        {
-            "name": "Max Players",
-            "description": "The maximum amount of players allowed on your game server.",
-            "env_variable": "MAX_PLAYERS",
-            "default_value": "32",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|integer|max:128",
-            "field_type": "text"
-        },
-        {
-            "name": "Tickrate",
-            "description": "The tickrate defines how fast the server will update each entity's location.",
-            "env_variable": "TICKRATE",
-            "default_value": "22",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|integer|max:100",
-            "field_type": "text"
-        },
-        {
-            "name": "Lua Refresh",
-            "description": "If enabled will try to update server version on every startup.",
-            "env_variable": "LUA_REFRESH",
-            "default_value": "0",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "x64",
-            "description": "Garry's Mod branch x32\/x64",
-            "env_variable": "GMOD_X64",
-            "default_value": "1",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "Auto Update",
-            "description": "If enabled will try to update server version on every startup.",
-            "env_variable": "AUTO_UPDATE",
-            "default_value": "1",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "Git Addons",
-            "description": "The space-separated list of Git addons to install on the server; the format must be \u201chttps:\/\/{registry.com}\/path\/to\/repo.git\u201d",
-            "env_variable": "GIT_ADDONS",
-            "default_value": "https:\/\/github.com\/Pika-Software\/glua-patches.git",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "string",
-            "field_type": "text"
-        },
-        {
-            "name": "Debug Level",
-            "description": "Set developer message level, affects on extra information for developers.",
-            "env_variable": "GMOD_DEVELOPER",
-            "default_value": "0",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|in:0,1,2,3,4",
-            "field_type": "text"
-        },
-        {
-            "name": "Physics Engine",
-            "description": "Select a physics engine for the game; the selected engine will be loaded when the server starts.\r\n\r\n- https:\/\/github.com\/RaphaelIT7\/VPhysics-Jolt\r\n- https:\/\/github.com\/Asphaltian\/VPhysics-Box3D",
-            "env_variable": "GMOD_PHYSICS_ENGINE",
-            "default_value": "havok",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|in:havok,jolt,box3d",
-            "field_type": "text"
-        },
-        {
-            "name": "Holy Library",
-            "description": "A library that contains many functions and some optimizations and bug fixes for gmod.\r\n\r\nhttps:\/\/github.com\/RaphaelIT7\/gmod-holylib",
-            "env_variable": "GMOD_HOLYLIB",
-            "default_value": "1",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "gm_passlogpatch",
-            "description": "Removes Enigne's xxxx: password failed. Console log output.\r\n\r\nhttps:\/\/github.com\/ncgst\/gm_passlogpatch",
-            "env_variable": "GMOD_MODULE_PASSLOGPATCH",
-            "default_value": "1",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "gmsv_tungstenite",
-            "description": "\ud83e\udea8 websocket client for garry's mod servers!\r\n\r\nhttps:\/\/github.com\/shockpast\/gm_tungstenite",
-            "env_variable": "GMOD_MODULE_TUNGSTENITE",
-            "default_value": "0",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "gm_getregistry",
-            "description": "A simple Garry's Mod Lua module that exposes the debug.getregistry table to Lua.\r\n\r\nThe main goal of this module is to provide access to the Lua registry table, which contains internal Lua state and metatables.\r\n\r\nhttps:\/\/github.com\/wrefgtzweve\/gm_getregistry",
-            "env_variable": "GMOD_MODULE_GETREGISTRY",
-            "default_value": "1",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "GWSockets",
-            "description": "WebSockets for GLua.\r\n\r\nhttps:\/\/github.com\/FredyH\/GWSockets\/",
-            "env_variable": "GMOD_MODULE_GWSOCKETS",
-            "default_value": "0",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "HTTP Client",
-            "description": "The HTTP client, which will be used additionally by the game, does not fundamentally replace the built-in one; it is used by advanced scripts.\r\n\r\n- https:\/\/github.com\/timschumi\/gmod-chttp\r\n- https:\/\/github.com\/WilliamVenner\/gmsv_reqwest",
-            "env_variable": "GMOD_HTTP_CLIENT",
-            "default_value": "gmod",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|in:gmod,chttp,reqwest",
-            "field_type": "text"
-        },
-        {
-            "name": "gmsv_workshop",
-            "description": "\ud83d\udce9 steamworks.DownloadUGC for the server!\r\n\r\nhttps:\/\/github.com\/WilliamVenner\/gmsv_workshop",
-            "env_variable": "GMOD_MODULE_WORKSHOP",
-            "default_value": "1",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "gmsv_async_postgres",
-            "description": "Simple PostgreSQL connector module for Garry's Mod using libpq with asynchronousity in mind.\r\n\r\nhttps:\/\/github.com\/Pika-Software\/gmsv_async_postgres",
-            "env_variable": "GMOD_MODULE_POSTGRES",
-            "default_value": "0",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "gm_asyncio",
-            "description": "Make your Garry's Mod I\/O asynchronous!\r\n\r\nhttps:\/\/github.com\/Pika-Software\/gm_asyncio",
-            "env_variable": "GMOD_MODULE_ASYNC_IO",
-            "default_value": "0",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        },
-        {
-            "name": "gm_efsw",
-            "description": "Entropia File System Watcher in Garry's Mod.\r\n\r\nhttps:\/\/github.com\/Pika-Software\/gm_efsw",
-            "env_variable": "GMOD_MODULE_EFSW",
-            "default_value": "0",
-            "user_viewable": true,
-            "user_editable": true,
-            "rules": "required|boolean",
-            "field_type": "text"
-        }
-    ]
+    {
+      "name": "Gamemode",
+      "description": "The gamemode of your server.",
+      "env_variable": "GAMEMODE",
+      "default_value": "sandbox",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|string",
+      "field_type": "text"
+    },
+    {
+      "name": "Max Players",
+      "description": "The maximum amount of players allowed on your game server.",
+      "env_variable": "MAX_PLAYERS",
+      "default_value": "32",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|integer|max:128",
+      "field_type": "text"
+    },
+    {
+      "name": "Tickrate",
+      "description": "The tickrate defines how fast the server will update each entity's location.",
+      "env_variable": "TICKRATE",
+      "default_value": "22",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|integer|max:100",
+      "field_type": "text"
+    },
+    {
+      "name": "Lua Refresh",
+      "description": "If enabled will try to update server version on every startup.",
+      "env_variable": "LUA_REFRESH",
+      "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "Game Branch",
+      "description": "x86-64 (Chromium + 64-bit binaries): The recommended branch for most players. It bypasses the 4GB RAM limit of the 32-bit version, significantly reducing crashing when running heavy addons.\r\n\r\ndev (Development branch): The bleeding-edge beta. It receives daily, untested changes directly from the developers and is intended mainly for add-on creators rather than casual players.\r\n\r\npublic (Main \/ Default): The standard live version of the game. If you do not select any beta in Steam, you are playing on this branch.",
+      "env_variable": "GMOD_BRANCH",
+      "default_value": "public",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|in:public,dev,x86-64",
+      "field_type": "text"
+    },
+    {
+      "name": "Auto Update",
+      "description": "If enabled will try to update server version on every startup.",
+      "env_variable": "AUTO_UPDATE",
+      "default_value": "1",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "Git Addons",
+      "description": "The space-separated list of Git addons to install on the server; the format must be \u201chttps:\/\/{registry.com}\/path\/to\/repo.git\u201d",
+      "env_variable": "GIT_ADDONS",
+      "default_value": "https:\/\/github.com\/Pika-Software\/glua-patches.git",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "string",
+      "field_type": "text"
+    },
+    {
+      "name": "Debug Level",
+      "description": "Set developer message level, affects on extra information for developers.",
+      "env_variable": "GMOD_DEVELOPER",
+      "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|in:0,1,2,3,4",
+      "field_type": "text"
+    },
+    {
+      "name": "Physics Engine",
+      "description": "Select a physics engine for the game; the selected engine will be loaded when the server starts.\r\n\r\n- https:\/\/github.com\/RaphaelIT7\/VPhysics-Jolt\r\n- https:\/\/github.com\/Asphaltian\/VPhysics-Box3D",
+      "env_variable": "GMOD_PHYSICS_ENGINE",
+      "default_value": "havok",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|in:havok,jolt,box3d",
+      "field_type": "text"
+    },
+    {
+      "name": "Holy Library",
+      "description": "A library that contains many functions and some optimizations and bug fixes for gmod.\r\n\r\nhttps:\/\/github.com\/RaphaelIT7\/gmod-holylib",
+      "env_variable": "GMOD_HOLYLIB",
+      "default_value": "1",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "gm_passlogpatch",
+      "description": "Removes Enigne's xxxx: password failed. Console log output.\r\n\r\nhttps:\/\/github.com\/ncgst\/gm_passlogpatch",
+      "env_variable": "GMOD_MODULE_PASSLOGPATCH",
+      "default_value": "1",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "gmsv_tungstenite",
+      "description": "\ud83e\udea8 websocket client for garry's mod servers!\r\n\r\nhttps:\/\/github.com\/shockpast\/gm_tungstenite",
+      "env_variable": "GMOD_MODULE_TUNGSTENITE",
+      "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "gm_getregistry",
+      "description": "A simple Garry's Mod Lua module that exposes the debug.getregistry table to Lua.\r\n\r\nThe main goal of this module is to provide access to the Lua registry table, which contains internal Lua state and metatables.\r\n\r\nhttps:\/\/github.com\/wrefgtzweve\/gm_getregistry",
+      "env_variable": "GMOD_MODULE_GETREGISTRY",
+      "default_value": "1",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "GWSockets",
+      "description": "WebSockets for GLua.\r\n\r\nhttps:\/\/github.com\/FredyH\/GWSockets\/",
+      "env_variable": "GMOD_MODULE_GWSOCKETS",
+      "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "HTTP Client",
+      "description": "The HTTP client, which will be used additionally by the game, does not fundamentally replace the built-in one; it is used by advanced scripts.\r\n\r\n- https:\/\/github.com\/timschumi\/gmod-chttp\r\n- https:\/\/github.com\/WilliamVenner\/gmsv_reqwest",
+      "env_variable": "GMOD_HTTP_CLIENT",
+      "default_value": "gmod",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|in:gmod,chttp,reqwest",
+      "field_type": "text"
+    },
+    {
+      "name": "gmsv_workshop",
+      "description": "\ud83d\udce9 steamworks.DownloadUGC for the server!\r\n\r\nhttps:\/\/github.com\/WilliamVenner\/gmsv_workshop",
+      "env_variable": "GMOD_MODULE_WORKSHOP",
+      "default_value": "1",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "gmsv_async_postgres",
+      "description": "Simple PostgreSQL connector module for Garry's Mod using libpq with asynchronousity in mind.\r\n\r\nhttps:\/\/github.com\/Pika-Software\/gmsv_async_postgres",
+      "env_variable": "GMOD_MODULE_POSTGRES",
+      "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "gm_asyncio",
+      "description": "Make your Garry's Mod I\/O asynchronous!\r\n\r\nhttps:\/\/github.com\/Pika-Software\/gm_asyncio",
+      "env_variable": "GMOD_MODULE_ASYNC_IO",
+      "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "gm_efsw",
+      "description": "Entropia File System Watcher in Garry's Mod.\r\n\r\nhttps:\/\/github.com\/Pika-Software\/gm_efsw",
+      "env_variable": "GMOD_MODULE_EFSW",
+      "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    }
+  ]
 }
