@@ -117,9 +117,11 @@ install_vdf() {
     local vmf_path="/home/container/garrysmod/addons/gmsv_${name}_${ARCH}.vdf"
     local plugin_path="lua/bin/gmsv_${name}_${ARCH}.so"
 
-    if { $is_enabled && $is_plugin && [ ! -f "$vmf_path" ]; }; then
-        printf "Plugin\n{\n\tfile\t\t\"${plugin_path}\"\n}\n" > "$vmf_path"
-        echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Generated VDF for plugin '${name}' (reason: enabled as plugin)"
+    if $is_enabled && $is_plugin; then
+        if [ ! -f "$vmf_path" ]; then
+            printf "Plugin\n{\n\tfile\t\t\"${plugin_path}\"\n}\n" > "$vmf_path"
+            echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Generated VDF for plugin '${name}' (reason: enabled as plugin)"
+        fi
     elif [ -f "$vmf_path" ]; then
         echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Yellow} Removing VDF for plugin '${name}' (reason: disabled/not_a_plugin)"
         rm -f "$vmf_path"
@@ -131,6 +133,7 @@ install_module() {
     local repo="$2"
     local is_enabled="${3:-false}"
     local is_plugin="${4:-false}"
+    local download_name_override="${5:-}"
 
     local ext="dll"
     if $is_plugin; then
@@ -144,9 +147,15 @@ install_module() {
             echo -e "${Default}[${Cyan}p1ka.eu${Default}] Skipping '$name' module (reason: already installed)"
         else
             echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Installing '$name' module..."
+
+            local download_name="gmsv_${name}_${ARCH}.${ext}"
+            if [ -n "$download_name_override" ]; then
+                download_name="$download_name_override"
+            fi
+
             curl -L --fail \
                 -o "$file_path" \
-                "$(get_github_asset_url "$repo" "gmsv_${name}_${ARCH}.${ext}")"
+                "$(get_github_asset_url "$repo" "$download_name")"
         fi
     elif [ -f "$file_path" ]; then
         echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Red} Purging '$name' module (reason: disabled)"
@@ -262,11 +271,18 @@ install_module \
     false
 
 # https://github.com/blueshank-gh/plugin_crashcapture
+if [ "$GMOD_BRANCH" = "x86-64" ]; then
+    crashcapture_asset="plugin_crashcapture64_sv.so"
+else
+    crashcapture_asset="plugin_crashcapture86_sv.so"
+fi
+
 install_module \
     "crashcapture" \
     "blueshank-gh/plugin_crashcapture" \
     "$(bool "${GMOD_MODULE_CRASHCAPTURE}" "1")" \
-    true
+    true \
+    "$crashcapture_asset"
 
 # Switch to the container's working directory
 cd /home/container || exit 1
