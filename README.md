@@ -1,10 +1,9 @@
 # Garry's Mod Pterodactyl Egg
-## With extra features
-- Automatic git addons cloning and updating
+## Features
+- automatic git addons cloning and updating
 - toggle-able x64
 - toggle-able auto update
-
-# TODO:
-- cleanup
-- add descriptions and better titles
-- more features?
+- custom logs (CoLoRfUlL)
+- phys engine selector
+- http client selector
+- binary modules installer (from panel)
