@@ -61,13 +61,13 @@ if [[ ! -z "$GIT_ADDONS" ]]; then
     cd /home/container || exit 1
 fi
 
-github_asset() {
-    repo="$1"
-    name="$2"
+get_github_asset_url() {
+    repo_path="$1"
+    file_name="$2"
 
-    curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" \
+    curl -fsSL "https://api.github.com/repos/${repo_path}/releases/latest" \
         | grep browser_download_url \
-        | grep -m 1 -F "${name}" \
+        | grep -m 1 -F "${file_name}" \
         | cut -d '"' -f 4
 }
 
@@ -121,7 +121,7 @@ install_module() {
             echo "Installing $name..."
             curl -L --fail \
                 -o "$file_path" \
-                "$(github_asset "$repo" "gmsv_${name}_${ARCH}.${ext}")"
+                "$(get_github_asset_url "$repo" "gmsv_${name}_${ARCH}.${ext}")"
         fi
     elif [ -f "$file_path" ]; then
         echo "Removing $name (disabled)"
@@ -136,9 +136,9 @@ if [ "${GMOD_PHYSICS_ENGINE}" = "jolt" ]; then
     echo "Installing Jolt..."
 
     if $isX64; then
-        download_extract "$(github_asset "RaphaelIT7/VPhysics-Jolt" "linux64.zip")" "/home/container"
+        download_extract "$(get_github_asset_url "RaphaelIT7/VPhysics-Jolt" "linux64.zip")" "/home/container"
     else
-        download_extract "$(github_asset "RaphaelIT7/VPhysics-Jolt" "linux32.zip")" "/home/container"
+        download_extract "$(get_github_asset_url "RaphaelIT7/VPhysics-Jolt" "linux32.zip")" "/home/container"
     fi
 
 # https://github.com/Asphaltian/VPhysics-Box3D
@@ -146,9 +146,9 @@ elif [ "${GMOD_PHYSICS_ENGINE}" = "box3d" ]; then
     echo "Installing Box3D..."
 
     if $isX64; then
-        download_extract "$(github_asset "Asphaltian/VPhysics-Box3D" "gmod-linux-x64-dedicated.zip")" "/home/container/bin/linux64"
+        download_extract "$(get_github_asset_url "Asphaltian/VPhysics-Box3D" "gmod-linux-x64-dedicated.zip")" "/home/container/bin/linux64"
     else
-        download_extract "$(github_asset "Asphaltian/VPhysics-Box3D" "gmod-linux-x86-dedicated.zip")" "/home/container/bin"
+        download_extract "$(get_github_asset_url "Asphaltian/VPhysics-Box3D" "gmod-linux-x86-dedicated.zip")" "/home/container/bin"
     fi
 fi
 
