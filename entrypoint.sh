@@ -53,22 +53,21 @@ fi
 if [[ -n "$GIT_ADDONS" && "$GIT_ADDONS" != "0" && "$GIT_ADDONS" != "-" ]]; then
     for repo_url in $(echo "$GIT_ADDONS" | tr ',\n\t' '   '); do
         repo_name=$(echo "$repo_url" | sed -E 's#.*/([^/]+)\.git$#\1#')
-        repo_path=/home/container/garrysmod/addons/${repo_name}
         echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Cloning ${repo_name}..."
 
+        repo_path=/home/container/garrysmod/addons/${repo_name}
         if [[ -d "$repo_path" ]]; then
             cd "$repo_path" || exit 1
             git reset --hard
             git clean -fd
             git pull
+            cd /home/container || exit 1
         else
             git clone "$repo_url" "$repo_path"
         fi
 
         git submodule update --init --recursive "$repo_path"
     done
-
-    cd /home/container || exit 1
 fi
 
 bool() {
