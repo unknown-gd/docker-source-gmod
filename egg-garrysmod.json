@@ -4,7 +4,7 @@
     "version": "PTDL_v2",
     "update_url": null
   },
-  "exported_at": "2026-07-14T17:17:08+02:00",
+  "exported_at": "2026-07-15T13:28:23+02:00",
   "name": "garrysmod",
   "author": "ukdev@p1ka.eu",
   "description": "Garrys Mod, is a sandbox physics game on Source Engine by Valve.",
@@ -253,6 +253,26 @@
       "description": "Entropia File System Watcher in Garry's Mod.\r\n\r\nhttps:\/\/github.com\/Pika-Software\/gm_efsw",
       "env_variable": "GMOD_MODULE_EFSW",
       "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "gmsv_serverstat",
+      "description": "\ud83d\udcca Fetch & monitor your server's resource usage through Lua.\r\n\r\nhttps:\/\/github.com\/WilliamVenner\/gmsv_serverstat",
+      "env_variable": "GMOD_MODULE_SERVERSTAT",
+      "default_value": "0",
+      "user_viewable": true,
+      "user_editable": true,
+      "rules": "required|boolean",
+      "field_type": "text"
+    },
+    {
+      "name": "plugin_crashcapture",
+      "description": "Captures failures from garry's mod and generates reports.\r\n\r\nhttps:\/\/github.com\/blueshank-gh\/plugin_crashcapture",
+      "env_variable": "GMOD_MODULE_CRASHCAPTURE",
+      "default_value": "1",
       "user_viewable": true,
       "user_editable": true,
       "rules": "required|boolean",

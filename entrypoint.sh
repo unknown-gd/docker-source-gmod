@@ -20,15 +20,18 @@ cd /home/container || exit 1
 # replacing the values.
 PARSED=$(echo "${STARTUP}" | sed -e 's/{{/${/g' -e 's/}}/}/g' | eval echo "$(cat -)")
 
-isX64=false
+mkdir -p /home/container/garrysmod/lua/bin
+mkdir -p /home/container/garrysmod/addons
 
-if [ "${GMOD_BRANCH}" = "x86-64" ]; then
-    isX64=true
+ARCH=linux
+if [ "$GMOD_BRANCH" = "x86-64" ]; then
+    mkdir -p /home/container/bin/linux64
+    ARCH=linux64
+else
+    mkdir -p /home/container/bin/linux32
 fi
 
-if [ -z "${AUTO_UPDATE}" ] || \
-    [ "${AUTO_UPDATE}" = "1" ] || \
-    { $isX64 && [ ! -f "/home/container/srcds_run_x64" ]; }; then
+if [ "${AUTO_UPDATE}" = "1" ] || { [ "$GMOD_BRANCH" = "x86-64" ] && [ ! -f "/home/container/srcds_run_x64" ]; }; then
     ./steamcmd/steamcmd.sh \
         +force_install_dir /home/container \
         +login anonymous \
@@ -36,15 +39,6 @@ if [ -z "${AUTO_UPDATE}" ] || \
         -beta "${GMOD_BRANCH}" \
         validate \
         +quit
-fi
-
-mkdir -p /home/container/garrysmod/lua/bin
-mkdir -p /home/container/garrysmod/addons
-
-if $isX64; then
-    mkdir -p /home/container/bin/linux64
-else
-    mkdir -p /home/container/bin/linux32
 fi
 
 if [[ ! -z "$GIT_ADDONS" ]]; then
@@ -68,9 +62,12 @@ if [[ ! -z "$GIT_ADDONS" ]]; then
 fi
 
 github_asset() {
-    curl -fsSL "https://api.github.com/repos/${1}/releases/latest" \
+    repo="$1"
+    name="$2"
+
+    curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" \
         | grep browser_download_url \
-        | grep -m 1 -F "$2" \
+        | grep -m 1 -F "${name}" \
         | cut -d '"' -f 4
 }
 
@@ -85,6 +82,53 @@ download_extract() {
     unzip -oq "$archive" -d "$dest"
 
     rm -f "$archive"
+}
+
+install_vdf() {
+    local name="$1"
+    local is_enabled="${2:-false}"
+    local is_plugin="${3:-false}"
+
+    local vmf_path="/home/container/garrysmod/addons/gmsv_${name}_${ARCH}.vdf"
+    local plugin_path="lua/bin/gmsv_${name}_${ARCH}.so"
+
+    if { $is_enabled && $is_plugin && [ ! -f "$vmf_path" ]; }; then
+        printf "Plugin\n{\n\tfile\t\t\"${plugin_path}\"\n}\n" > "$vmf_path"
+        echo "Generated VDF for plugin ${name}"
+    elif [ -f "$vmf_path" ]; then
+        echo "Removing VDF for plugin ${name}"
+        rm -f "$vmf_path"
+    fi
+}
+
+install_module() {
+    local name="$1"
+    local repo="$2"
+    local is_enabled="${3:-false}"
+    local is_plugin="${4:-false}"
+
+    local ext="dll"
+    if $is_plugin; then
+        ext="so"
+    fi
+
+    local file_path="/home/container/garrysmod/lua/bin/gmsv_${name}_${ARCH}.${ext}"
+
+    if $is_enabled; then
+        if [ -f "$file_path" ]; then
+            echo "Skipping $name (already installed)"
+        else
+            echo "Installing $name..."
+            curl -L --fail \
+                -o "$file_path" \
+                "$(github_asset "$repo" "gmsv_${name}_${ARCH}.${ext}")"
+        fi
+    elif [ -f "$file_path" ]; then
+        echo "Removing $name (disabled)"
+        rm -f "$file_path"
+    fi
+
+    install_vdf "$name" "$is_enabled" "$is_plugin"
 }
 
 # https://github.com/RaphaelIT7/VPhysics-Jolt
@@ -109,206 +153,95 @@ elif [ "${GMOD_PHYSICS_ENGINE}" = "box3d" ]; then
 fi
 
 # https://github.com/timschumi/gmod-chttp
-if [ "${GMOD_HTTP_CLIENT}" = "chttp" ]; then
-    echo "Installing gmod-chttp..."
-
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_chttp_linux64.dll "$(github_asset "timschumi/gmod-chttp" "gmsv_chttp_linux64.dll")"
-    else
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_chttp_linux.dll "$(github_asset "timschumi/gmod-chttp" "gmsv_chttp_linux.dll")"
-    fi
-
-    if [ -f "/home/container/garrysmod/lua/bin/gmsv_reqwest_linux.dll" ]; then
-        rm -f /home/container/garrysmod/lua/bin/gmsv_reqwest_linux.dll
-    fi
-
-    if [ -f "/home/container/garrysmod/lua/bin/gmsv_reqwest_linux64.dll" ]; then
-        rm -f /home/container/garrysmod/lua/bin/gmsv_reqwest_linux64.dll
-    fi
+install_module \
+    "chttp" \
+    "timschumi/gmod-chttp" \
+    [ "${GMOD_HTTP_CLIENT}" = "chttp" ] \
+    true
 
 # https://github.com/WilliamVenner/gmsv_reqwest
-elif [ "${GMOD_HTTP_CLIENT}" = "reqwest" ]; then
-    echo "Installing gmod-reqwest..."
-
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_reqwest_linux64.dll "$(github_asset "WilliamVenner/gmsv_reqwest" "gmsv_reqwest_linux64.dll")"
-    else
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_reqwest_linux.dll "$(github_asset "WilliamVenner/gmsv_reqwest" "gmsv_reqwest_linux.dll")"
-    fi
-
-    if [ -f "/home/container/garrysmod/lua/bin/gmsv_chttp_linux.dll" ]; then
-        rm -f /home/container/garrysmod/lua/bin/gmsv_chttp_linux.dll
-    fi
-
-    if [ -f "/home/container/garrysmod/lua/bin/gmsv_chttp_linux64.dll" ]; then
-        rm -f /home/container/garrysmod/lua/bin/gmsv_chttp_linux64.dll
-    fi
-else
-    if [ -f "/home/container/garrysmod/lua/bin/gmsv_chttp_linux.dll" ]; then
-        rm -f /home/container/garrysmod/lua/bin/gmsv_chttp_linux.dll
-    fi
-
-    if [ -f "/home/container/garrysmod/lua/bin/gmsv_chttp_linux64.dll" ]; then
-        rm -f /home/container/garrysmod/lua/bin/gmsv_chttp_linux64.dll
-    fi
-
-    if [ -f "/home/container/garrysmod/lua/bin/gmsv_reqwest_linux.dll" ]; then
-        rm -f /home/container/garrysmod/lua/bin/gmsv_reqwest_linux.dll
-    fi
-
-    if [ -f "/home/container/garrysmod/lua/bin/gmsv_reqwest_linux64.dll" ]; then
-        rm -f /home/container/garrysmod/lua/bin/gmsv_reqwest_linux64.dll
-    fi
-fi
+install_module \
+    "reqwest" \
+    "WilliamVenner/gmsv_reqwest" \
+    [ "${GMOD_HTTP_CLIENT}" = "reqwest" ] \
+    true
 
 # https://github.com/RaphaelIT7/gmod-holylib
-if [ "${GMOD_HOLYLIB}" = "1" ]; then
-    echo "Installing HolyLib..."
-
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/addons/holylib_linux_64.vdf "$(github_asset "RaphaelIT7/gmod-holylib" "holylib_linux_64.vdf")"
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_holylib_linux64.so "$(github_asset "RaphaelIT7/gmod-holylib" "gmsv_holylib_linux64.so")"
-    else
-        curl -L --fail -o /home/container/garrysmod/addons/holylib_linux.vdf "$(github_asset "RaphaelIT7/gmod-holylib" "holylib_linux.vdf")"
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_holylib_linux.so "$(github_asset "RaphaelIT7/gmod-holylib" "gmsv_holylib_linux.so")"
-    fi
-elif $isX64; then
-    if [ -f "/home/container/garrysmod/addons/holylib_linux_64.vdf" ]; then
-        rm -f /home/container/garrysmod/addons/holylib_linux_64.vdf
-    fi
-
-    if [ -f "/home/container/garrysmod/lua/bin/gmsv_holylib_linux64.so" ]; then
-        rm -f /home/container/garrysmod/lua/bin/gmsv_holylib_linux64.so
-    fi
-else
-    if [ -f "/home/container/garrysmod/addons/holylib_linux.vdf" ]; then
-        rm -f /home/container/garrysmod/addons/holylib_linux.vdf
-    fi
-
-    if [ -f "/home/container/garrysmod/lua/bin/gmsv_holylib_linux.so" ]; then
-        rm -f /home/container/garrysmod/lua/bin/gmsv_holylib_linux.so
-    fi
-fi
+install_module \
+    "holylib" \
+    "RaphaelIT7/gmod-holylib" \
+    [ "$GMOD_HOLYLIB" = "1" ] \
+    true
 
 # https://github.com/ncgst/gm_passlogpatch
-if [ "${GMOD_MODULE_PASSLOGPATCH}" = "1" ]; then
-    echo "Installing gm_passlogpatch..."
-
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_passlogpatch_linux64.dll "$(github_asset "ncgst/gm_passlogpatch" "gmsv_passlogpatch_linux64.dll")"
-    else
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_passlogpatch_linux.dll "$(github_asset "ncgst/gm_passlogpatch" "gmsv_passlogpatch_linux.dll")"
-    fi
-elif { $isX64 && [ -f "/home/container/garrysmod/lua/bin/gmsv_passlogpatch_linux64.dll" ]; }; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_passlogpatch_linux64.dll
-elif [ -f "/home/container/garrysmod/lua/bin/gmsv_passlogpatch_linux.dll" ]; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_passlogpatch_linux.dll
-fi
+install_module \
+    "passlogpatch" \
+    "ncgst/gm_passlogpatch" \
+    [ "$GMOD_MODULE_PASSLOGPATCH" = "1" ] \
+    false
 
 # https://github.com/shockpast/gm_tungstenite
-if [ "${GMOD_MODULE_TUNGSTENITE}" = "1" ]; then
-    echo "Installing gm_tungstenite..."
-
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_tungstenite_linux64.dll "$(github_asset "shockpast/gm_tungstenite" "gmsv_tungstenite_linux64.dll")"
-    else
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_tungstenite_linux.dll "$(github_asset "shockpast/gm_tungstenite" "gmsv_tungstenite_linux.dll")"
-    fi
-elif { $isX64 && [ -f "/home/container/garrysmod/lua/bin/gmsv_tungstenite_linux64.dll" ]; }; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_tungstenite_linux64.dll
-elif [ -f "/home/container/garrysmod/lua/bin/gmsv_tungstenite_linux.dll" ]; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_tungstenite_linux.dll
-fi
+install_module \
+    "tungstenite" \
+    "shockpast/gm_tungstenite" \
+    [ "$GMOD_MODULE_TUNGSTENITE" = "1" ] \
+    false
 
 # https://github.com/wrefgtzweve/gm_getregistry
-if [ "${GMOD_MODULE_GETREGISTRY}" = "1" ]; then
-    echo "Installing gm_getregistry..."
-
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_getregistry_linux64.dll "$(github_asset "wrefgtzweve/gm_getregistry" "gmsv_getregistry_linux64.dll")"
-    else
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_getregistry_linux.dll "$(github_asset "wrefgtzweve/gm_getregistry" "gmsv_getregistry_linux.dll")"
-    fi
-elif { $isX64 && [ -f "/home/container/garrysmod/lua/bin/gmsv_getregistry_linux64.dll" ]; }; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_getregistry_linux64.dll
-elif [ -f "/home/container/garrysmod/lua/bin/gmsv_getregistry_linux.dll" ]; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_getregistry_linux.dll
-fi
+install_module \
+    "getregistry" \
+    "wrefgtzweve/gm_getregistry" \
+    [ "$GMOD_MODULE_GETREGISTRY" = "1" ] \
+    false
 
 # https://github.com/FredyH/GWSockets
-if [ "${GMOD_MODULE_GWSOCKETS}" = "1" ]; then
-    echo "Installing gm_gwsockets..."
-
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_gwsockets_linux64.dll "$(github_asset "FredyH/GWSockets" "gmsv_gwsockets_linux64.dll")"
-    else
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_gwsockets_linux.dll "$(github_asset "FredyH/GWSockets" "gmsv_gwsockets_linux.dll")"
-    fi
-elif { $isX64 && [ -f "/home/container/garrysmod/lua/bin/gmsv_gwsockets_linux64.dll" ]; }; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_gwsockets_linux64.dll
-elif [ -f "/home/container/garrysmod/lua/bin/gmsv_gwsockets_linux.dll" ]; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_gwsockets_linux.dll
-fi
+install_module \
+    "gwsockets" \
+    "FredyH/GWSockets" \
+    [ "$GMOD_MODULE_GWSOCKETS" = "1" ] \
+    false
 
 # https://github.com/WilliamVenner/gmsv_workshop
-if [ "${GMOD_MODULE_WORKSHOP}" = "1" ]; then
-    echo "Installing gmsv_workshop..."
-
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_workshop_linux64.dll "$(github_asset "WilliamVenner/gmsv_workshop" "gmsv_workshop_linux64.dll")"
-    else
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_workshop_linux.dll "$(github_asset "WilliamVenner/gmsv_workshop" "gmsv_workshop_linux.dll")"
-    fi
-elif { $isX64 && [ -f "/home/container/garrysmod/lua/bin/gmsv_workshop_linux64.dll" ]; }; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_workshop_linux64.dll
-elif [ -f "/home/container/garrysmod/lua/bin/gmsv_workshop_linux.dll" ]; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_workshop_linux.dll
-fi
+install_module \
+    "workshop" \
+    "WilliamVenner/gmsv_workshop" \
+    [ "$GMOD_MODULE_WORKSHOP" = "1" ] \
+    false
 
 # https://github.com/Pika-Software/gmsv_async_postgres
-if [ "${GMOD_MODULE_POSTGRES}" = "1" ]; then
-    echo "Installing gmsv_async_postgres..."
-
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_async_postgres_linux64.dll "$(github_asset "Pika-Software/gmsv_async_postgres" "gmsv_async_postgres_linux64.dll")"
-    else
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_async_postgres_linux.dll "$(github_asset "Pika-Software/gmsv_async_postgres" "gmsv_async_postgres_linux.dll")"
-    fi
-elif { $isX64 && [ -f "/home/container/garrysmod/lua/bin/gmsv_async_postgres_linux64.dll" ]; }; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_async_postgres_linux64.dll
-elif [ -f "/home/container/garrysmod/lua/bin/gmsv_async_postgres_linux.dll" ]; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_async_postgres_linux.dll
-fi
+install_module \
+    "async_postgres" \
+    "Pika-Software/gmsv_async_postgres" \
+    [ "$GMOD_MODULE_POSTGRES" = "1" ] \
+    false
 
 # https://github.com/Pika-Software/gm_asyncio
-if [ "${GMOD_MODULE_ASYNC_IO}" = "1" ]; then
-    echo "Installing gm_asyncio..."
-
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_asyncio_linux64.dll "$(github_asset "Pika-Software/gm_asyncio" "gmsv_asyncio_linux64.dll")"
-    else
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_asyncio_linux.dll "$(github_asset "Pika-Software/gm_asyncio" "gmsv_asyncio_linux.dll")"
-    fi
-elif { $isX64 && [ -f "/home/container/garrysmod/lua/bin/gmsv_asyncio_linux64.dll" ]; }; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_asyncio_linux64.dll
-elif [ -f "/home/container/garrysmod/lua/bin/gmsv_asyncio_linux.dll" ]; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_asyncio_linux.dll
-fi
+install_module \
+    "asyncio" \
+    "Pika-Software/gm_asyncio" \
+    [ "$GMOD_MODULE_ASYNC_IO" = "1" ] \
+    false
 
 # https://github.com/Pika-Software/gm_efsw
-if [ "${GMOD_MODULE_EFSW}" = "1" ]; then
-    echo "Installing gm_efsw..."
+install_module \
+    "efsw" \
+    "Pika-Software/gm_efsw" \
+    [ "$GMOD_MODULE_EFSW" = "1" ] \
+    false
 
-    if $isX64; then
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_efsw_linux64.dll "$(github_asset "Pika-Software/gm_efsw" "gmsv_efsw_linux64.dll")"
-    else
-        curl -L --fail -o /home/container/garrysmod/lua/bin/gmsv_efsw_linux.dll "$(github_asset "Pika-Software/gm_efsw" "gmsv_efsw_linux.dll")"
-    fi
-elif { $isX64 && [ -f "/home/container/garrysmod/lua/bin/gmsv_efsw_linux64.dll" ]; }; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_efsw_linux64.dll
-elif [ -f "/home/container/garrysmod/lua/bin/gmsv_efsw_linux.dll" ]; then
-    rm -f /home/container/garrysmod/lua/bin/gmsv_efsw_linux.dll
-fi
+# https://github.com/WilliamVenner/gmsv_serverstat
+install_module \
+    "serverstat" \
+    "WilliamVenner/gmsv_serverstat" \
+    [ "$GMOD_MODULE_SERVERSTAT" = "1" ] \
+    false
+
+# https://github.com/blueshank-gh/plugin_crashcapture
+install_module \
+    "crashcapture" \
+    "blueshank-gh/plugin_crashcapture" \
+    [ "$GMOD_MODULE_CRASHCAPTURE" = "1" ] \
+    true
 
 # Switch to the container's working directory
 cd /home/container || exit 1
