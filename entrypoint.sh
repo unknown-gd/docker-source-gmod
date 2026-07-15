@@ -61,12 +61,13 @@ if [[ -n "$GIT_ADDONS" && "$GIT_ADDONS" != "0" && "$GIT_ADDONS" != "-" ]]; then
             git reset --hard
             git clean -fd
             git pull
-            cd /home/container || exit 1
         else
             git clone "$repo_url" "$repo_path"
+            cd "$repo_path" || exit 1
         fi
 
-        git submodule update --init --recursive "$repo_path"
+        git submodule update --init --recursive
+        cd /home/container || exit 1
     done
 fi
 
