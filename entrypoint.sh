@@ -21,11 +21,11 @@ cd /home/container || exit 1
 PARSED=$(echo "${STARTUP}" | sed -e 's/{{/${/g' -e 's/}}/}/g' | eval echo "$(cat -)")
 
 # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
-Default='\e[0m'       # Text Reset
-Red='\e[1;31m'          # Red
-Green='\e[1;32m'        # Green
-Yellow='\e[1;33m'       # Yellow
-Cyan='\e[1;36m'         # Cyan
+Default='\033[0m'       # Text Reset
+Red='\033[1;31m'        # Red
+Green='\033[1;32m'      # Green
+Yellow='\033[1;33m'     # Yellow
+Cyan='\033[1;36m'       # Cyan
 
 mkdir -p /home/container/garrysmod/lua/bin
 mkdir -p /home/container/garrysmod/addons
@@ -50,7 +50,7 @@ if [ "${AUTO_UPDATE}" = "1" ] || { [ "$GMOD_BRANCH" = "x86-64" ] && [ ! -f "/hom
         +quit
 fi
 
-if [[ ! -z "$GIT_ADDONS" ]]; then
+if [[ -n "$GIT_ADDONS" && "$GIT_ADDONS" != "0" && "$GIT_ADDONS" != "-" ]]; then
     for repo_url in $(echo "$GIT_ADDONS" | tr ',\n\t' '   '); do
         repo_name=$(echo "$repo_url" | sed -E 's#.*/([^/]+)\.git$#\1#')
         repo_path=/home/container/garrysmod/addons/${repo_name}
@@ -66,7 +66,6 @@ if [[ ! -z "$GIT_ADDONS" ]]; then
         fi
 
         git submodule update --init --recursive "$repo_path"
-
     done
 
     cd /home/container || exit 1
@@ -289,7 +288,7 @@ cd /home/container || exit 1
 
 # Display the command we're running in the output, and then execute it with the env
 # from the container itself.
-printf "\033[1m\033[33mcontainer@pterodactyl~ \033[0m%s\n" "$PARSED"
+printf "\033[1m\033[33mcontainer@p1ka.eu~ \033[0m%s\n" "$PARSED"
 
 # shellcheck disable=SC2086
 exec env ${PARSED}
