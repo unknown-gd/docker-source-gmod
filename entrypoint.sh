@@ -20,6 +20,13 @@ cd /home/container || exit 1
 # replacing the values.
 PARSED=$(echo "${STARTUP}" | sed -e 's/{{/${/g' -e 's/}}/}/g' | eval echo "$(cat -)")
 
+# https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
+Default='\e[0m'       # Text Reset
+Red='\e[1;31m'          # Red
+Green='\e[1;32m'        # Green
+Yellow='\e[1;33m'       # Yellow
+Cyan='\e[1;36m'         # Cyan
+
 mkdir -p /home/container/garrysmod/lua/bin
 mkdir -p /home/container/garrysmod/addons
 
@@ -32,6 +39,8 @@ else
 fi
 
 if [ "${AUTO_UPDATE}" = "1" ] || { [ "$GMOD_BRANCH" = "x86-64" ] && [ ! -f "/home/container/srcds_run_x64" ]; }; then
+    echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Yellow} Updating Garry's Mod (branch: ${GMOD_BRANCH})..."
+
     ./steamcmd/steamcmd.sh \
         +force_install_dir /home/container \
         +login anonymous \
@@ -43,7 +52,9 @@ fi
 
 if [[ ! -z "$GIT_ADDONS" ]]; then
     for repo_url in $(echo "$GIT_ADDONS" | tr ',\n\t' '   '); do
-        repo_path=/home/container/garrysmod/addons/$(echo "$repo_url" | sed -E 's#.*/([^/]+)\.git$#\1#')
+        repo_name=$(echo "$repo_url" | sed -E 's#.*/([^/]+)\.git$#\1#')
+        repo_path=/home/container/garrysmod/addons/${repo_name}
+        echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Cloning ${repo_name}..."
 
         if [[ -d "$repo_path" ]]; then
             cd "$repo_path" || exit 1
@@ -61,6 +72,14 @@ if [[ ! -z "$GIT_ADDONS" ]]; then
     cd /home/container || exit 1
 fi
 
+bool() {
+    if [ "$1" = "$2" ]; then
+        echo true
+    else
+        echo false
+    fi
+}
+
 get_github_asset_url() {
     repo_path="$1"
     file_name="$2"
@@ -75,11 +94,17 @@ download_extract() {
     url="$1"
     dest="$2"
 
-    archive="$(mktemp)"
+    echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Downloading '$url'..."
 
+    archive="$(mktemp)"
     curl -L --fail -o "$archive" "$url"
+
+    echo -e "${Default}[${Cyan}p1ka.eu${Default}] Extracting '$archive'..."
+
     mkdir -p "$dest"
     unzip -oq "$archive" -d "$dest"
+
+    echo -e "${Default}[${Cyan}p1ka.eu${Default}] Extracted '$archive' to '$dest'"
 
     rm -f "$archive"
 }
@@ -94,9 +119,9 @@ install_vdf() {
 
     if { $is_enabled && $is_plugin && [ ! -f "$vmf_path" ]; }; then
         printf "Plugin\n{\n\tfile\t\t\"${plugin_path}\"\n}\n" > "$vmf_path"
-        echo "Generated VDF for plugin ${name}"
+        echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Generated VDF for plugin '${name}' (reason: enabled as plugin)"
     elif [ -f "$vmf_path" ]; then
-        echo "Removing VDF for plugin ${name}"
+        echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Yellow} Removing VDF for plugin '${name}' (reason: disabled/not_a_plugin)"
         rm -f "$vmf_path"
     fi
 }
@@ -116,15 +141,15 @@ install_module() {
 
     if $is_enabled; then
         if [ -f "$file_path" ]; then
-            echo "Skipping $name (already installed)"
+            echo -e "${Default}[${Cyan}p1ka.eu${Default}] Skipping '$name' module (reason: already installed)"
         else
-            echo "Installing $name..."
+            echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Installing '$name' module..."
             curl -L --fail \
                 -o "$file_path" \
                 "$(get_github_asset_url "$repo" "gmsv_${name}_${ARCH}.${ext}")"
         fi
     elif [ -f "$file_path" ]; then
-        echo "Removing $name (disabled)"
+        echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Red} Purging '$name' module (reason: disabled)"
         rm -f "$file_path"
     fi
 
@@ -133,9 +158,9 @@ install_module() {
 
 # https://github.com/RaphaelIT7/VPhysics-Jolt
 if [ "${GMOD_PHYSICS_ENGINE}" = "jolt" ]; then
-    echo "Installing Jolt..."
+    echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Installing Jolt Physics Engine..."
 
-    if $isX64; then
+    if [ "$GMOD_BRANCH" = "x86-64" ]; then
         download_extract "$(get_github_asset_url "RaphaelIT7/VPhysics-Jolt" "linux64.zip")" "/home/container"
     else
         download_extract "$(get_github_asset_url "RaphaelIT7/VPhysics-Jolt" "linux32.zip")" "/home/container"
@@ -143,9 +168,9 @@ if [ "${GMOD_PHYSICS_ENGINE}" = "jolt" ]; then
 
 # https://github.com/Asphaltian/VPhysics-Box3D
 elif [ "${GMOD_PHYSICS_ENGINE}" = "box3d" ]; then
-    echo "Installing Box3D..."
+    echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Installing Box3D Physics Engine..."
 
-    if $isX64; then
+    if [ "$GMOD_BRANCH" = "x86-64" ]; then
         download_extract "$(get_github_asset_url "Asphaltian/VPhysics-Box3D" "gmod-linux-x64-dedicated.zip")" "/home/container/bin/linux64"
     else
         download_extract "$(get_github_asset_url "Asphaltian/VPhysics-Box3D" "gmod-linux-x86-dedicated.zip")" "/home/container/bin"
@@ -156,91 +181,91 @@ fi
 install_module \
     "chttp" \
     "timschumi/gmod-chttp" \
-    [ "${GMOD_HTTP_CLIENT}" = "chttp" ] \
-    true
+    "$(bool "${GMOD_HTTP_CLIENT}" "chttp")" \
+    false
 
 # https://github.com/WilliamVenner/gmsv_reqwest
 install_module \
     "reqwest" \
     "WilliamVenner/gmsv_reqwest" \
-    [ "${GMOD_HTTP_CLIENT}" = "reqwest" ] \
-    true
+    "$(bool "${GMOD_HTTP_CLIENT}" "reqwest")" \
+    false
 
 # https://github.com/RaphaelIT7/gmod-holylib
 install_module \
     "holylib" \
     "RaphaelIT7/gmod-holylib" \
-    [ "$GMOD_HOLYLIB" = "1" ] \
+    "$(bool "${GMOD_HOLYLIB}" "1")" \
     true
 
 # https://github.com/ncgst/gm_passlogpatch
 install_module \
     "passlogpatch" \
     "ncgst/gm_passlogpatch" \
-    [ "$GMOD_MODULE_PASSLOGPATCH" = "1" ] \
+    "$(bool "${GMOD_MODULE_PASSLOGPATCH}" "1")" \
     false
 
 # https://github.com/shockpast/gm_tungstenite
 install_module \
     "tungstenite" \
     "shockpast/gm_tungstenite" \
-    [ "$GMOD_MODULE_TUNGSTENITE" = "1" ] \
+    "$(bool "${GMOD_MODULE_TUNGSTENITE}" "1")" \
     false
 
 # https://github.com/wrefgtzweve/gm_getregistry
 install_module \
     "getregistry" \
     "wrefgtzweve/gm_getregistry" \
-    [ "$GMOD_MODULE_GETREGISTRY" = "1" ] \
+    "$(bool "${GMOD_MODULE_GETREGISTRY}" "1")" \
     false
 
 # https://github.com/FredyH/GWSockets
 install_module \
     "gwsockets" \
     "FredyH/GWSockets" \
-    [ "$GMOD_MODULE_GWSOCKETS" = "1" ] \
+    "$(bool "${GMOD_MODULE_GWSOCKETS}" "1")" \
     false
 
 # https://github.com/WilliamVenner/gmsv_workshop
 install_module \
     "workshop" \
     "WilliamVenner/gmsv_workshop" \
-    [ "$GMOD_MODULE_WORKSHOP" = "1" ] \
+    "$(bool "${GMOD_MODULE_WORKSHOP}" "1")" \
     false
 
 # https://github.com/Pika-Software/gmsv_async_postgres
 install_module \
     "async_postgres" \
     "Pika-Software/gmsv_async_postgres" \
-    [ "$GMOD_MODULE_POSTGRES" = "1" ] \
+    "$(bool "${GMOD_MODULE_POSTGRES}" "1")" \
     false
 
 # https://github.com/Pika-Software/gm_asyncio
 install_module \
     "asyncio" \
     "Pika-Software/gm_asyncio" \
-    [ "$GMOD_MODULE_ASYNC_IO" = "1" ] \
+    "$(bool "${GMOD_MODULE_ASYNC_IO}" "1")" \
     false
 
 # https://github.com/Pika-Software/gm_efsw
 install_module \
     "efsw" \
     "Pika-Software/gm_efsw" \
-    [ "$GMOD_MODULE_EFSW" = "1" ] \
+    "$(bool "${GMOD_MODULE_EFSW}" "1")" \
     false
 
 # https://github.com/WilliamVenner/gmsv_serverstat
 install_module \
     "serverstat" \
     "WilliamVenner/gmsv_serverstat" \
-    [ "$GMOD_MODULE_SERVERSTAT" = "1" ] \
+    "$(bool "${GMOD_MODULE_SERVERSTAT}" "1")" \
     false
 
 # https://github.com/blueshank-gh/plugin_crashcapture
 install_module \
     "crashcapture" \
     "blueshank-gh/plugin_crashcapture" \
-    [ "$GMOD_MODULE_CRASHCAPTURE" = "1" ] \
+    "$(bool "${GMOD_MODULE_CRASHCAPTURE}" "1")" \
     true
 
 # Switch to the container's working directory
