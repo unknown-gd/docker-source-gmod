@@ -1,6 +1,8 @@
 # Garry's Mod Pterodactyl Egg
+
 ## Features
-- automatic git addons cloning and updating
+
+- automatic git addons cloning and updating (`addons.yml`)
 - toggle-able x64
 - toggle-able auto update
 - custom logs (CoLoRfUlL)
