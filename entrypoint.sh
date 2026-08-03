@@ -50,20 +50,111 @@ if [ "${AUTO_UPDATE}" = "1" ] || { [ "$GMOD_BRANCH" = "x86-64" ] && [ ! -f "/hom
         +quit
 fi
 
-if [[ -n "$GIT_ADDONS" && "$GIT_ADDONS" != "0" && "$GIT_ADDONS" != "-" ]]; then
-    for repo_url in $(echo "$GIT_ADDONS" | tr ',\n\t' '   '); do
-        repo_name=$(echo "$repo_url" | sed -E 's#.*/([^/]+)\.git$#\1#')
-        echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Cloning ${repo_name}..."
+CONFIG_YML="/home/container/addons.yml"
 
-        repo_path=/home/container/garrysmod/addons/${repo_name}
-        if [[ -d "$repo_path" ]]; then
-            cd "$repo_path" || exit 1
+if [[ ! -f "$CONFIG_YML" ]]; then
+    echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Yellow} No addons.yml found, creating default..."
+    cat > "$CONFIG_YML" <<'EOF'
+addons:
+  #
+  # ## Example usage
+  #
+  # - url: https://github.com/user/repo.git
+  #   auth:
+  #     type: github
+  #     token: env:GITHUB_TOKEN
+  #
+  # - url: https://gitlab.com/user/repo2.git
+  #   branch: main
+  #   auth:
+  #     type: gitlab
+  #     token: env:GITLAB_TOKEN
+  #
+  # - url: https://bitbucket.org/user/repo3.git
+  #   name: custom-addon-folder
+  #   auth:
+  #     type: bitbucket
+  #     username: myuser
+  #     token: env:BB_APP_PASSWORD
+
+  - url: https://github.com/Pika-Software/glua-patches.git
+EOF
+fi
+
+if [[ -f "$CONFIG_YML" ]]; then
+    if ! command -v yq &>/dev/null; then
+        echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Red} addons.yml found but 'yq' is not installed to parse it."
+        exit 1
+    fi
+
+    if ! command -v jq &>/dev/null; then
+        echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Red} 'jq' is required but not installed."
+        exit 1
+    fi
+
+    ADDONS_JSON=$(yq -o=json '.' "$CONFIG_YML")
+    addon_count=$(echo "$ADDONS_JSON" | jq '.addons | length')
+
+    for ((i = 0; i < addon_count; i++)); do
+        addon=$(echo "$ADDONS_JSON" | jq -c ".addons[$i]")
+
+        repo_url=$(echo "$addon" | jq -r '.url // empty')
+        [[ -z "$repo_url" ]] && continue
+
+        repo_name=$(echo "$addon" | jq -r '.name // empty')
+        [[ -z "$repo_name" ]] && repo_name=$(echo "$repo_url" | sed -E 's#.*/([^/]+)\.git$#\1#')
+
+        branch=$(echo "$addon" | jq -r '.branch // empty')
+        auth_type=$(echo "$addon" | jq -r '.auth.type // "none"' | tr '[:upper:]' '[:lower:]')
+        token_raw=$(echo "$addon" | jq -r '.auth.token // empty')
+        username=$(echo "$addon" | jq -r '.auth.username // empty')
+
+        # Token can be a literal value or "env:VAR_NAME" to pull from an env var
+        token=""
+        if [[ "$token_raw" == env:* ]]; then
+            env_name="${token_raw#env:}"
+            token="${!env_name}"
+        else
+            token="$token_raw"
+        fi
+
+        extraheader=()
+        if [[ -n "$token" ]]; then
+            case "$auth_type" in
+                github)
+                    b64=$(printf 'x-access-token:%s' "$token" | base64 -w0)
+                    extraheader=(-c "http.extraheader=Authorization: Basic ${b64}")
+                    ;;
+                gitlab)
+                    extraheader=(-c "http.extraheader=PRIVATE-TOKEN: ${token}")
+                    ;;
+                bitbucket)
+                    if [[ -z "$username" ]]; then
+                        echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Yellow} Bitbucket auth for ${repo_name} needs 'username', skipping auth."
+                    else
+                        b64=$(printf '%s:%s' "$username" "$token" | base64 -w0)
+                        extraheader=(-c "http.extraheader=Authorization: Basic ${b64}")
+                    fi
+                    ;;
+                none) ;;
+                *)
+                    echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Yellow} Unknown auth type '${auth_type}' for ${repo_name}, cloning without auth."
+                    ;;
+            esac
+        fi
+
+        echo -e "${Default}[${Cyan}p1ka.eu${Default}]${Green} Cloning ${repo_name}..."
+        repo_path="/home/container/garrysmod/addons/${repo_name}"
+
+        if [[ -d "$repo_path/.git" ]]; then
+            cd "$repo_path" || continue
             git reset --hard
             git clean -fd
-            git pull
+            git "${extraheader[@]}" pull
         else
-            git clone "$repo_url" "$repo_path"
-            cd "$repo_path" || exit 1
+            mkdir -p "$repo_path"
+            git "${extraheader[@]}" clone ${branch:+--branch "$branch"} "$repo_url" "$repo_path"
+            cd "$repo_path" || continue
         fi
 
         git submodule update --init --recursive

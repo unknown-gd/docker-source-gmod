@@ -17,6 +17,7 @@ RUN dpkg --add-architecture i386 && \
     net-tools \
     iproute2 \
     tzdata \
+    jq \
     telnet \
     libc6:i386 \
     libgcc-s1:i386 \
@@ -37,6 +38,10 @@ RUN dpkg --add-architecture i386 && \
     libfontconfig1 && \
     rm -rf /var/lib/apt/lists/* && \
     useradd -m -d /home/container container
+
+# https://github.com/mikefarah/yq / https://hub.docker.com/r/mikefarah/yq
+COPY --from=docker.io/mikefarah/yq:4 /usr/bin/yq /usr/bin/yq
+RUN chmod +x /usr/bin/yq
 
 USER container
 ENV USER=container HOME=/home/container

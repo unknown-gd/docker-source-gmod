@@ -129,16 +129,6 @@
       "field_type": "text"
     },
     {
-      "name": "Git Addons",
-      "description": "The space-separated list of Git addons to install on the server; the format must be \u201chttps:\/\/{registry.com}\/path\/to\/repo.git\u201d",
-      "env_variable": "GIT_ADDONS",
-      "default_value": "https:\/\/github.com\/Pika-Software\/glua-patches.git",
-      "user_viewable": true,
-      "user_editable": true,
-      "rules": "string",
-      "field_type": "text"
-    },
-    {
       "name": "Debug Level",
       "description": "Set developer message level, affects on extra information for developers.",
       "env_variable": "GMOD_DEVELOPER",
